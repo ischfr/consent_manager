@@ -401,5 +401,11 @@ consent_manager_inline_privacy_link_text_info = Inline Placeholder: Link-Text "D
 consent_manager_button_inline_details_text_info = Inline Placeholder: Button "Einstellungen"
 consent_manager_button_inline_allow_all_text_info = Inline Placeholder: Button "Alle erlauben"
 
+# YRewrite Integration
+consent_manager_yrewrite_domain_select = Domain aus YRewrite wählen
+consent_manager_yrewrite_domain_manual = Manuelle Eingabe
+consent_manager_yrewrite_sync_notice = Diese Domain wird automatisch entfernt, wenn sie in YRewrite gelöscht wird
+consent_manager_yrewrite_domain_deleted = Domain "{0}" wurde automatisch aus dem Consent Manager entfernt (YRewrite-Synchronisation)
+
 # Theme Editor
 theme_editor_saved = Theme "{0}" wurde erfolgreich erstellt und gespeichert!

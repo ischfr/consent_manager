@@ -113,6 +113,33 @@ class consent_manager_rex_form
      * @return bool
      * @api
      */
+    /**
+     * Bereinigt Domain-Namen von Protokollen, www-Präfix und Pfaden
+     * @param string $domain
+     * @return string
+     */
+    public static function cleanDomainName($domain)
+    {
+        $domain = strtolower(trim($domain));
+        
+        // Protokoll entfernen (https://, http://)
+        $domain = preg_replace('/^https?:\/\//', '', $domain);
+        
+        // www-Präfix entfernen
+        $domain = preg_replace('/^www\./', '', $domain);
+        
+        // Alles nach dem ersten / entfernen (Pfade)
+        $domain = preg_replace('/\/.*$/', '', $domain);
+        
+        // Trailing Slash entfernen
+        $domain = rtrim($domain, '/');
+        
+        // Port entfernen falls vorhanden (z.B. :8080)
+        $domain = preg_replace('/:\d+$/', '', $domain);
+        
+        return $domain;
+    }
+
     public static function validateLowercase($value)
     {
         // Prüft ob der Wert nur Kleinbuchstaben enthält

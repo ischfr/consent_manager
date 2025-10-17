@@ -24,14 +24,92 @@ if ('delete' === $func) {
     $form->addParam('start', rex_request('start', 'int', 0));
     $form->setApplyUrl(rex_url::currentBackendPage());
 
-    $field = $form->addTextField('uid');
-    $field->setLabel($addon->i18n('consent_manager_domain'));
-    $field->getValidator()->add('notEmpty', $addon->i18n('consent_manager_domain_empty_msg'));
-    $field->getValidator()->add('custom', $addon->i18n('consent_manager_domain_malformed_msg'), 'consent_manager_rex_form::validateHostname');
-    $field->getValidator()->add('custom', 'Domain muss in Kleinbuchstaben eingegeben werden (z.B. "example.com" statt "Example.com")', function($value) {
-        return consent_manager_rex_form::validateLowercase($value);
+    // YRewrite Integration: Domain aus YRewrite auswählen oder manuell eingeben
+    $yrewriteAvailable = rex_addon::get('yrewrite')->isAvailable();
+    
+    if ($yrewriteAvailable && $func === 'add') {
+        // Bei neuem Eintrag: Select mit YRewrite-Domains + manuelle Option
+        $field = $form->addSelectField('uid');
+        $field->setLabel($addon->i18n('consent_manager_domain'));
+        $select = $field->getSelect();
+        $select->addOption('--- Manuell eingeben ---', '_manual_');
+        
+        // YRewrite-Domains laden und bereinigen
+        $yrewriteDomains = rex_yrewrite::getDomains();
+        foreach ($yrewriteDomains as $domain) {
+            $domainName = $domain->getName();
+            // Domain bereinigen: https://, http://, www., Trailing Slashes entfernen
+            $cleanDomain = consent_manager_rex_form::cleanDomainName($domainName);
+            $select->addOption($domainName . ' → ' . $cleanDomain . ' (YRewrite)', $cleanDomain);
+        }
+        
+        $field->setNotice('Wählen Sie eine Domain aus YRewrite oder "Manuell eingeben" für eine eigene Domain. Domains werden automatisch bereinigt (ohne https://, www. etc.).');
+        $field->getValidator()->add('notEmpty', $addon->i18n('consent_manager_domain_empty_msg'));
+        
+        // JavaScript für manuellen Input
+        $field->setPrefix('<div id="domain-wrapper">');
+        $field->setSuffix('</div><script>
+jQuery(function($) {
+    var $select = $("select[name=uid]");
+    var $wrapper = $("#domain-wrapper");
+    
+    // Manuelles Eingabefeld vorbereiten
+    var $manualInput = $("<input type=\"text\" name=\"uid_manual\" class=\"form-control\" placeholder=\"example.com\" />");
+    $manualInput.hide().insertAfter($select);
+    
+    $select.on("change", function() {
+        if ($(this).val() === "_manual_") {
+            $select.hide();
+            $manualInput.show().focus();
+        }
     });
-    $field->setNotice('Domain ohne Protokoll eingeben (z.B. "example.com"). Bitte nur Kleinbuchstaben verwenden.');
+    
+    // Zurück-Button hinzufügen
+    var $backBtn = $("<button type=\"button\" class=\"btn btn-default btn-sm\" style=\"margin-top: 5px;\"><i class=\"fa fa-arrow-left\"></i> Zurück zur Auswahl</button>");
+    $backBtn.hide().insertAfter($manualInput);
+    
+    $backBtn.on("click", function() {
+        $manualInput.hide().val("");
+        $backBtn.hide();
+        $select.show().val("");
+    });
+    
+    $select.on("change", function() {
+        if ($(this).val() === "_manual_") {
+            $backBtn.show();
+        }
+    });
+    
+    // Bei Submit: Wert aus manuellem Feld übernehmen und bereinigen
+    $("form").on("submit", function() {
+        if ($select.val() === "_manual_" && $manualInput.is(":visible")) {
+            var cleanVal = $manualInput.val()
+                .toLowerCase()
+                .replace(/^https?:\/\//, "")  // Protokoll entfernen
+                .replace(/^www\./, "")          // www. entfernen
+                .replace(/\/.*$/, "")           // Pfade entfernen
+                .replace(/\/$/, "");            // Trailing Slash
+            $select.val(cleanVal);
+        }
+    });
+});
+</script>');
+    } else {
+        // Bei Edit oder wenn YRewrite nicht verfügbar: Normales Textfeld
+        $field = $form->addTextField('uid');
+        $field->setLabel($addon->i18n('consent_manager_domain'));
+        $field->getValidator()->add('notEmpty', $addon->i18n('consent_manager_domain_empty_msg'));
+        $field->getValidator()->add('custom', $addon->i18n('consent_manager_domain_malformed_msg'), 'consent_manager_rex_form::validateHostname');
+        $field->getValidator()->add('custom', 'Domain muss in Kleinbuchstaben eingegeben werden (z.B. "example.com" statt "Example.com")', function($value) {
+            return consent_manager_rex_form::validateLowercase($value);
+        });
+        
+        $notice = 'Domain ohne Protokoll eingeben (z.B. "example.com"). Bitte nur Kleinbuchstaben verwenden.';
+        if ($yrewriteAvailable && $func === 'edit') {
+            $notice .= ' <br><span class="text-info"><i class="fa fa-info-circle"></i> Diese Domain wird automatisch entfernt, wenn sie in YRewrite gelöscht wird.</span>';
+        }
+        $field->setNotice($notice);
+    }
 
     $field = $form->addLinkmapField('privacy_policy');
     $field->setLabel($addon->i18n('consent_manager_domain_privacy_policy')); /** @phpstan-ignore-line */

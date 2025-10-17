@@ -172,3 +172,50 @@ if (rex_addon::get('media_manager')->isAvailable()) {
 if (rex_addon::get('cronjob')->isAvailable() && !rex::isSafeMode()) {
     rex_cronjob_manager::registerType(rex_cronjob_log_delete::class);
 }
+
+// YRewrite Integration: Domains synchronisieren
+if (rex_addon::get('yrewrite')->isAvailable()) {
+    // Extension Point: Nach dem Löschen einer YRewrite-Domain
+    rex_extension::register('YREWRITE_DOMAIN_DELETED', static function (rex_extension_point $ep) {
+        $deletedDomain = $ep->getParam('domain');
+        if ($deletedDomain && method_exists($deletedDomain, 'getName')) {
+            $domainName = $deletedDomain->getName();
+            
+            // Domain bereinigen (falls in YRewrite mit https:// etc. gespeichert)
+            if (class_exists('consent_manager_rex_form')) {
+                $domainName = consent_manager_rex_form::cleanDomainName($domainName);
+            }
+            
+            // Prüfen ob diese Domain im Consent Manager existiert
+            $sql = rex_sql::factory();
+            $sql->setQuery('SELECT id FROM ' . rex::getTable('consent_manager_domain') . ' WHERE uid = ?', [$domainName]);
+            
+            if ($sql->getRows() > 0) {
+                $consentDomainId = $sql->getValue('id');
+                
+                // Domain aus Consent Manager löschen
+                $deleteSql = rex_sql::factory();
+                $deleteSql->setTable(rex::getTable('consent_manager_domain'));
+                $deleteSql->setWhere('id = ?', [$consentDomainId]);
+                $deleteSql->delete();
+                
+                // Cache neu schreiben
+                if (rex_addon::get('consent_manager')->isAvailable()) {
+                    consent_manager_cache::forceWrite();
+                }
+                
+                // Backend-Nachricht (nur wenn im Backend)
+                if (rex::isBackend()) {
+                    rex_extension::register('OUTPUT_FILTER', static function (rex_extension_point $ep) use ($domainName) {
+                        $subject = $ep->getSubject();
+                        $message = rex_view::info('Consent Manager: Domain "' . rex_escape($domainName) . '" wurde automatisch entfernt (YRewrite-Synchronisation).');
+                        
+                        // Nachricht nach dem <body> Tag einfügen
+                        $subject = str_replace('<body', $message . '<body', $subject);
+                        return $subject;
+                    }, rex_extension::EARLY);
+                }
+            }
+        }
+    });
+}

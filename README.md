@@ -43,6 +43,7 @@ Das AddOn stellt eine DSGVO-konforme Lösung für die Einholung von Einverständ
 - Vollständig anpassbare Texte und Designs
 - Google Consent Mode v2 Integration
 - Mehrsprachig und Multi-Domain-fähig
+- **YRewrite-Integration**: Domain-Auswahl aus YRewrite + automatische Synchronisation
 
 ![Screenshot](https://github.com/FriendsOfREDAXO/consent_manager/blob/assets/consent_manager.png?raw=true)
 
