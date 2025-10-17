@@ -48,47 +48,54 @@ if ('delete' === $func) {
         
         // JavaScript für manuellen Input
         $field->setPrefix('<div id="domain-wrapper">');
-        $field->setSuffix('</div><script>
+        $field->setSuffix('</div>
+<div id="manual-input-wrapper" style="display:none; margin-top: 10px;">
+    <input type="text" name="uid_manual" id="uid_manual" class="form-control" placeholder="example.com" />
+    <button type="button" class="btn btn-default btn-sm" id="back-to-select" style="margin-top: 5px;">
+        <i class="fa fa-arrow-left"></i> Zurück zur Auswahl
+    </button>
+</div>
+<script>
 jQuery(function($) {
-    var $select = $("select[name=uid]");
-    var $wrapper = $("#domain-wrapper");
+    var $select = $("#domain-wrapper select[name=uid]");
+    var $manualWrapper = $("#manual-input-wrapper");
+    var $manualInput = $("#uid_manual");
+    var $backBtn = $("#back-to-select");
     
-    // Manuelles Eingabefeld vorbereiten
-    var $manualInput = $("<input type=\"text\" name=\"uid_manual\" class=\"form-control\" placeholder=\"example.com\" />");
-    $manualInput.hide().insertAfter($select);
-    
+    // Bei Auswahl "Manuell eingeben"
     $select.on("change", function() {
         if ($(this).val() === "_manual_") {
-            $select.hide();
-            $manualInput.show().focus();
+            $("#domain-wrapper").hide();
+            $manualWrapper.show();
+            $manualInput.focus();
         }
     });
     
-    // Zurück-Button hinzufügen
-    var $backBtn = $("<button type=\"button\" class=\"btn btn-default btn-sm\" style=\"margin-top: 5px;\"><i class=\"fa fa-arrow-left\"></i> Zurück zur Auswahl</button>");
-    $backBtn.hide().insertAfter($manualInput);
-    
+    // Zurück zur Auswahl
     $backBtn.on("click", function() {
-        $manualInput.hide().val("");
-        $backBtn.hide();
-        $select.show().val("");
-    });
-    
-    $select.on("change", function() {
-        if ($(this).val() === "_manual_") {
-            $backBtn.show();
-        }
+        $manualWrapper.hide();
+        $manualInput.val("");
+        $("#domain-wrapper").show();
+        $select.val("");
     });
     
     // Bei Submit: Wert aus manuellem Feld übernehmen und bereinigen
-    $("form").on("submit", function() {
-        if ($select.val() === "_manual_" && $manualInput.is(":visible")) {
-            var cleanVal = $manualInput.val()
+    $("form").on("submit", function(e) {
+        if ($select.val() === "_manual_" && $manualWrapper.is(":visible")) {
+            var cleanVal = $manualInput.val().trim()
                 .toLowerCase()
                 .replace(/^https?:\/\//, "")  // Protokoll entfernen
                 .replace(/^www\./, "")          // www. entfernen
                 .replace(/\/.*$/, "")           // Pfade entfernen
+                .replace(/:\d+$/, "")           // Port entfernen
                 .replace(/\/$/, "");            // Trailing Slash
+            
+            if (cleanVal === "") {
+                alert("Bitte geben Sie eine Domain ein.");
+                e.preventDefault();
+                return false;
+            }
+            
             $select.val(cleanVal);
         }
     });
