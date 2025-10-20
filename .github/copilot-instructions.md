@@ -8,6 +8,9 @@ This is the **REDAXO Consent Manager AddOn** - a comprehensive GDPR/DSGVO-compli
 **Main Language:** PHP (REDAXO CMS AddOn)  
 **Frontend:** JavaScript, SCSS/CSS  
 **Database:** MySQL/MariaDB  
+**Current Version:** 5.0 (Namespace Migration)  
+**Target Namespace:** `FriendsOfRedaxo\ConsentManager`  
+**Minimum REDAXO:** 5.17+ (required for namespace autoloader support)  
 
 ## Architecture & Key Components
 
@@ -15,11 +18,14 @@ This is the **REDAXO Consent Manager AddOn** - a comprehensive GDPR/DSGVO-compli
 ```
 ├── boot.php              # AddOn bootstrap file
 ├── package.yml           # AddOn configuration
-├── lib/                  # Core PHP classes
-│   ├── consent_manager_frontend.php    # Frontend controller
-│   ├── consent_manager_theme.php       # Theme system
-│   ├── consent_manager_inline.php      # Inline consent system
-│   └── consent_manager_*.php           # Various utility classes
+├── lib/                  # Core PHP classes (PSR-4 structure)
+│   ├── Frontend.php                    # Frontend controller (was consent_manager_frontend.php)
+│   ├── Theme.php                       # Theme system (was consent_manager_theme.php)
+│   ├── Inline.php                      # Inline consent system (was consent_manager_inline.php)
+│   ├── Util.php                        # Utilities (was consent_manager_util.php)
+│   └── legacy/                         # Backward compatibility wrappers
+│       ├── consent_manager_frontend.php  # @deprecated wrapper
+│       └── consent_manager_*.php         # @deprecated legacy classes
 ├── pages/                # Backend administration pages
 │   ├── theme.php         # Theme selection and preview
 │   ├── theme_editor.php  # A11y theme editor with color picker
@@ -48,10 +54,15 @@ This is the **REDAXO Consent Manager AddOn** - a comprehensive GDPR/DSGVO-compli
 
 ### Code Standards
 - **PHP:** Follow REDAXO conventions, use `rex_` prefixes for classes
-- **Naming:** Use snake_case for files, camelCase for methods
+- **Naming:** Use snake_case for files, camelCase for methods  
 - **Security:** Always use `rex_escape()` for output, `rex_request()` for input
 - **i18n:** Use `$addon->i18n('key')` for all translatable strings
 - **Database:** Use `rex_sql` class, never direct SQL queries
+- **✅ Version 5.0 Active:** Namespace migration to `FriendsOfRedaxo\ConsentManager` in progress
+  - **NEW:** PSR-4 classes: `lib/Frontend.php` (was `lib/consent_manager_frontend.php`)
+  - **Legacy:** Backward compatibility wrappers in `lib/legacy/` directory
+  - **Namespace:** All new code must use `FriendsOfRedaxo\ConsentManager` namespace
+  - **Use Statements:** Add `use rex_addon;` etc. for REDAXO core classes
 
 ### Commit Messages
 Use **Conventional Commits** format (configured in `.gitmessage`):
@@ -154,15 +165,23 @@ chore(i18n): Update German translations
 - **Text Management:** Backend interface for all strings
 - **Parameter Support:** Dynamic content with placeholders
 
-## API & Integration
+### API & Integration
 
-### REX_VARS (Deprecated in 5.x)
+### Template Integration (5.0)
 ```php
-// OLD (deprecated)
-REX_CONSENT_MANAGER[service=youtube]
+// CURRENT (5.0) - Namespaced classes
+<?php 
+use FriendsOfRedaxo\ConsentManager\Frontend;
+echo Frontend::getFragment(); 
+?>
 
-// NEW (recommended)  
+// LEGACY (4.x compatibility) - Still supported with @deprecated warnings
 <?php echo consent_manager_frontend::getFragment(); ?>
+
+// REX_VAR (Fixed in 4.5, still supported in 5.0)
+REX_CONSENT_MANAGER[]
+REX_CONSENT_MANAGER[forceCache=0 forceReload=0]
+REX_CONSENT_MANAGER[inline=true]
 ```
 
 ### JavaScript API
@@ -222,6 +241,47 @@ consentManagerDebug.show();
 - **Setup Files**: When adding new text UIDs, update ALL 4 setup JSON files
 - **SCSS Auto-Compilation**: Themes compile automatically when selected in backend
 - **GitHub Copilot Reviews**: Address all review comments in PRs before merging
+
+## Version 5.0 Active Development
+
+### Namespace Migration (Issue #342) - ✅ IN PROGRESS
+- **Active Namespace**: `FriendsOfRedaxo\ConsentManager`  
+- **PSR-4 Implementation**: File structure matches namespace hierarchy
+- **Legacy Layer**: Backward compatibility wrappers in `lib/legacy/` directory
+- **Migration Status**: Gradual transition with deprecation warnings active
+
+### Current File Structure (5.0)
+```
+lib/
+├── Frontend.php              # Main frontend controller (namespaced)
+├── Theme.php                 # Theme system (namespaced)
+├── Inline.php                # Inline consent system (namespaced)
+├── Util.php                  # Utility functions (namespaced)
+├── Cache.php                 # Cache management (namespaced)
+├── Api/                      # API classes directory
+│   └── ConsentApi.php        # API endpoints (registered with rex_api_package)
+└── legacy/                   # Backward compatibility (temporary)
+    ├── consent_manager_frontend.php  # @deprecated 5.0 wrapper
+    ├── consent_manager_theme.php     # @deprecated 5.0 wrapper
+    └── consent_manager_*.php         # @deprecated 5.0 wrappers
+```
+
+### Breaking Changes (5.0) - ACTIVE
+- **Class Names**: `consent_manager_frontend` → `FriendsOfRedaxo\ConsentManager\Frontend`
+- **File Names**: `consent_manager_*.php` → PSR-4 camelCase naming (e.g., `Frontend.php`)
+- **API Registration**: Using `rex_api_package::register()` for namespaced APIs
+- **Minimum REDAXO**: Now requires REDAXO 5.17+ for namespace autoloader support
+- **Template Changes**: `consent_manager_frontend::getFragment()` → `\FriendsOfRedaxo\ConsentManager\Frontend::getFragment()`
+- **Legacy Wrappers**: Available in `lib/legacy/` with @deprecated warnings
+
+### Active Development Guidelines (5.0)
+- **Namespace Required**: All new classes must declare `namespace FriendsOfRedaxo\ConsentManager;`
+- **Use Statements**: Always add `use rex_addon;`, `use rex_sql;` etc. for REDAXO core classes
+- **Class Naming**: CamelCase only (Frontend, Theme, Util) - no underscores
+- **File Naming**: Must match class name exactly (Frontend.php for class Frontend)
+- **PSR-4 Compliance**: Directory structure must match namespace hierarchy
+- **Legacy Support**: Create @deprecated wrapper classes in `lib/legacy/` extending new namespaced classes
+- **API Registration**: Use `\rex_api_package::register('api_name', NamespacedClass::class)`
 
 ## Debugging
 
